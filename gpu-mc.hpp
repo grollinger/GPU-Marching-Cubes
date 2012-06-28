@@ -9,10 +9,8 @@
 #include <fstream>
 #include <utility>
 #include <string>
-#include <GL/glew.h>
-#include <GL/glut.h>
-#include "openCLGLUtilities.hpp"
 #include <math.h>
+#include <CL/cl.hpp>
 
 using namespace cl;
 
