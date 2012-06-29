@@ -10,15 +10,12 @@ __constant int4 cubeOffsets[8] = {
 		{0, 1, 1, 0},
 		{1, 1, 1, 0},
 	}; 
-
-__kernel void constructHPLevel(
-		__read_only image3d_t readHistoPyramid, 
-		__global uint * writeHistoPyramid
-	) {	
-
-	int4 writePos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
-	int4 readPos = writePos*2;
-	uint writeValue = read_imagei(readHistoPyramid, sampler, readPos).x + // 0
+	
+uint sum_cube(
+		int4 readPos, 
+		__read_only image3d_t readHistoPyramid
+	){
+	return read_imagei(readHistoPyramid, sampler, readPos).x + // 0
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[1]).x + // 1
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[2]).x + // 2
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[3]).x + // 3
@@ -26,8 +23,23 @@ __kernel void constructHPLevel(
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[5]).x + // 5
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[6]).x + // 6
 		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[7]).x; // 7
+}
 
-    writeHistoPyramid[writePos.x+writePos.y*get_global_size(0)+writePos.z*get_global_size(0)*get_global_size(0)] = writeValue;
+size_t calculate_idx(int4 dimensions, int4 indices) {
+	return indices.x + indices.y * dimensions.x + indices.z * dimensions.x * dimensions.y;
+}
+
+
+__kernel void constructHPLevel(
+		__read_only image3d_t readHistoPyramid, 
+		__global uint * writeHistoPyramid
+	) {	
+
+	int4 writePos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
+	int4 dimensions = {get_global_size(0), get_global_size(1), get_global_size(2), 0};
+	int4 readPos = writePos*2;
+	uint writeValue = sum_cube(readPos, readHistoPyramid);
+    writeHistoPyramid[calculate_idx(dimensions, writePos)] = writeValue;
 }
 
 __kernel void constructHPLevelChar(
@@ -36,17 +48,11 @@ __kernel void constructHPLevelChar(
 	) {	
 
 	int4 writePos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
+	int4 dimensions = {get_global_size(0), get_global_size(1), get_global_size(2), 0};
 	int4 readPos = writePos*2;
-	uchar writeValue = read_imagei(readHistoPyramid, sampler, readPos).x + // 0
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[1]).x + // 1
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[2]).x + // 2
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[3]).x + // 3
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[4]).x + // 4
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[5]).x + // 5
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[6]).x + // 6
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[7]).x; // 7
+	uchar writeValue = sum_cube(readPos, readHistoPyramid);
 
-    writeHistoPyramid[writePos.x+writePos.y*get_global_size(0)+writePos.z*get_global_size(0)*get_global_size(0)] = writeValue;
+    writeHistoPyramid[calculate_idx(dimensions, writePos)] = writeValue;
 }
 
 __kernel void constructHPLevelShort(
@@ -55,17 +61,11 @@ __kernel void constructHPLevelShort(
 	) {	
 
 	int4 writePos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
+	int4 dimensions = {get_global_size(0), get_global_size(1), get_global_size(2), 0};
 	int4 readPos = writePos*2;
-	ushort writeValue = read_imagei(readHistoPyramid, sampler, readPos).x + // 0
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[1]).x + // 1
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[2]).x + // 2
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[3]).x + // 3
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[4]).x + // 4
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[5]).x + // 5
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[6]).x + // 6
-		read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[7]).x; // 7
+	ushort writeValue = sum_cube(readPos, readHistoPyramid);
 
-    writeHistoPyramid[writePos.x+writePos.y*get_global_size(0)+writePos.z*get_global_size(0)*get_global_size(0)] = writeValue;
+    writeHistoPyramid[calculate_idx(dimensions, writePos)] = writeValue;
 }
 
 
