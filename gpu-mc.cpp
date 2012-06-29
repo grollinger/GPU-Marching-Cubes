@@ -1,19 +1,16 @@
-#include "gpu-mc.hpp"
+/*#include "gpu-mc.hpp"
+
+namespace StereoFu{
+	cl::Program GpuMC::getProgram(){
+		using namespace std;
+		vector<boost::filesystem::path> sources;
+		sources.push_back();
+		return ctx.buildProgram(sources
+	}
+}
 
 
 
-int SIZE;
-int isolevel = 50;
-int windowWidth, windowHeight;
-
-Image3D rawData;
-Kernel constructHPLevelKernel;
-Kernel classifyCubesKernel;
-Kernel traverseHPKernel;
-vector<Image3D> images;
-
-cl::size_t<3> origin; //offset
-cl::size_t<3> region;
 void renderScene() {
     histoPyramidConstruction();
 
@@ -55,23 +52,7 @@ void renderScene() {
 	glRotatef(xrot,1.0,0.0,0.0);
 	glRotatef(yrot,0.0, 1.0, 0.0);
 
-    // Draw axis
-    /*
-    glPushMatrix();
-    glBegin(GL_LINES);
-        glColor3f(1.0f, 0.0f, 0.0f);
-
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(0.0f, 2.0f, 0.0f);
-
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(2.0f, 0.0f, 0.0f);
-
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(0.0f, 0.0f, 2.0f);
-    glEnd();
-    glPopMatrix();
-    */
+    
 
     glPushMatrix();
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -300,4 +281,4 @@ void histoPyramidTraversal(int sum) {
     queue.enqueueReleaseGLObjects(&v, 0, &traversalEvent);
 //	traversalSync = glCreateSyncFromCLeventARB((cl_context)context(), (cl_event)traversalEvent(), 0); // Need the GL_ARB_cl_event extension
     queue.flush();
-}
+}*/
