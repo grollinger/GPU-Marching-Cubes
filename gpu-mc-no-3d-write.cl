@@ -30,7 +30,7 @@ size_t calculate_idx(int4 dimensions, int4 indices) {
 }
 
 
-__kernel void constructHPLevel(
+__kernel void constructHPLevelUInt(
 		__read_only image3d_t readHistoPyramid, 
 		__global uint * writeHistoPyramid
 	) {	

@@ -1,16 +1,18 @@
-/*#include "gpu-mc.hpp"
+#include "gpu-mc.hpp"
 
 namespace StereoFu{
 	cl::Program GpuMC::getProgram(){
 		using namespace std;
+		boost::filesystem::path mc_source(GPU_MC_PATH);
+
 		vector<boost::filesystem::path> sources;
-		sources.push_back();
-		return ctx.buildProgram(sources
+		sources.push_back(mc_source);
+		return ctx.buildProgram(sources);
 	}
 }
 
 
-
+/*
 void renderScene() {
     histoPyramidConstruction();
 
