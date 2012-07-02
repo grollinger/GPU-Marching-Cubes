@@ -55,22 +55,6 @@ __constant int4 cubeOffsets[8] = {
 		{1, 1, 1, 0},
 	}; 
 
-uint sum_cube(
-	int4 readPos, 
-	__read_only image3d_t readHistoPyramid
-){
-return read_imagei(readHistoPyramid, sampler, readPos).x + // 0
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[1]).x + // 1
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[2]).x + // 2
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[3]).x + // 3
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[4]).x + // 4
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[5]).x + // 5
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[6]).x + // 6
-	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[7]).x; // 7
-}
-
-
-
 __kernel void constructHPLevel(
 		__global uint * readHistoPyramid, 
 		__global uint * writeHistoPyramid
@@ -90,19 +74,7 @@ __kernel void constructHPLevel(
     writeHistoPyramid[writePos] = writeValue;
 }
 
-int4 scanHPLevel(int target, __global int * hp, int4 current) {
-	
-    /*
-	int8 neighbors = {
-		read_imagei(hp, sampler, current).x,
-		read_imagei(hp, sampler, current + cubeOffsets[1]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[2]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[3]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[4]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[5]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[6]).x,
-		read_imagei(hp, sampler, current + cubeOffsets[7]).x
-	};*/
+int4 scanHPLevel(int target, __global int * hp, int4 current) {   
 
 	int8 neighbors = {
 		hp[EncodeMorton(current)],
@@ -115,19 +87,7 @@ int4 scanHPLevel(int target, __global int * hp, int4 current) {
 		hp[EncodeMorton(current + cubeOffsets[7])],
 	};
 
-    /*
-    uint readPos = EncodeMorton3(current.x, current.y, current.z);
-	int8 neighbors = {
-        hp[readPos],
-        hp[readPos + 1],
-        hp[readPos + 2],
-        hp[readPos + 3],
-        hp[readPos + 4],
-        hp[readPos + 5],
-        hp[readPos + 6],
-        hp[readPos + 7],
-	};
-    */
+   
 
 	int acc = current.s3 + neighbors.s0;
 	int8 cmp;
@@ -562,21 +522,21 @@ __kernel void classifyCubes(
 		__global int * histoPyramid, 
         __global uchar * cubeIndexes,
 		__read_only image3d_t rawData,
-		__private int isolevel
+		__private float isolevel
 		) {
     int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
 
     // Find cube class nr
-	const uchar first = read_imagei(rawData, sampler, pos).x;
+	const float first = read_imagef(rawData, sampler, pos).x;
     const uchar cubeindex = 
     ((first > isolevel)) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[1]).x > isolevel) << 1) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[3]).x > isolevel) << 2) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[2]).x > isolevel) << 3) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[4]).x > isolevel) << 4) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[5]).x > isolevel) << 5) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[7]).x > isolevel) << 6) |
-    ((read_imagei(rawData, sampler, pos + cubeOffsets[6]).x > isolevel) << 7);
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[1]).x > isolevel) << 1) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[3]).x > isolevel) << 2) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[2]).x > isolevel) << 3) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[4]).x > isolevel) << 4) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[5]).x > isolevel) << 5) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[7]).x > isolevel) << 6) |
+    ((read_imagef(rawData, sampler, pos + cubeOffsets[6]).x > isolevel) << 7);
 
     // Store number of triangles and index
     uint writePos = EncodeMorton3(pos.x,pos.y,pos.z);
