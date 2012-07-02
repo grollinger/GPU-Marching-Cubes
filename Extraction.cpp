@@ -1,13 +1,18 @@
-#include "gpu-mc.hpp"
+#include "Extraction.hpp"
 
 namespace StereoFu{
-	cl::Program GpuMC::getProgram(){
+	cl::Program Extraction::getProgram(){
 		using namespace std;
 		boost::filesystem::path mc_source(GPU_MC_PATH);
 
 		vector<boost::filesystem::path> sources;
 		sources.push_back(mc_source);
 		return ctx.buildProgram(sources);
+	}
+
+	Mesh Extraction::extract_isosurface(VoxelSpace space)
+	{
+		return Mesh(0);
 	}
 }
 
@@ -199,7 +204,7 @@ void setupOpenCL(uchar * voxels, int size) {
         );
         delete[] voxels;
 
-		// Make kernels
+		// Make Integration
 		constructHPLevelKernel = Kernel(program, "constructHPLevel");
 		classifyCubesKernel = Kernel(program, "classifyCubes");
 		traverseHPKernel = Kernel(program, "traverseHP");
