@@ -55,9 +55,25 @@ __constant int4 cubeOffsets[8] = {
 		{1, 1, 1, 0},
 	}; 
 
+uint sum_cube(
+	int4 readPos, 
+	__read_only image3d_t readHistoPyramid
+){
+return read_imagei(readHistoPyramid, sampler, readPos).x + // 0
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[1]).x + // 1
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[2]).x + // 2
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[3]).x + // 3
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[4]).x + // 4
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[5]).x + // 5
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[6]).x + // 6
+	read_imagei(readHistoPyramid, sampler, readPos+cubeOffsets[7]).x; // 7
+}
+
+
+
 __kernel void constructHPLevel(
-		__global int * readHistoPyramid, 
-		__global int * writeHistoPyramid
+		__global uint * readHistoPyramid, 
+		__global uint * writeHistoPyramid
 	) {	
 
 	uint writePos = EncodeMorton3(get_global_id(0), get_global_id(1), get_global_id(2));
@@ -446,7 +462,7 @@ __constant char triTable[4096] =
 0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
-#define SIZE **HP_SIZE**
+
 __kernel void traverseHP(
         __read_only image3d_t rawData,
         __read_only image3d_t cubeIndexes,
