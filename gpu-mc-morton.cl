@@ -1,4 +1,4 @@
-//#pragma OPENCL EXTENSION cl_amd_printf:enable
+#pragma OPENCL EXTENSION cl_amd_printf:enable
 
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
@@ -426,27 +426,33 @@ __constant char triTable[4096] =
 __kernel void traverseHP(
         __read_only image3d_t rawData,
         __read_only image3d_t cubeIndexes,
-        __global int * hp0, // Largest HP
-		__global int * hp1,
-		__global int * hp2,
-		__global int * hp3,
-		__global int * hp4,
-		__global int * hp5,
+		__global float * VBOBuffer,
+		__private float isolevel,
+		__private uint sum,
+        __global uint * hp0, // Largest HP
+		__global uint * hp1,
+		__global uint * hp2
+		#if SIZE > 8
+		,__global int * hp3
+		#endif
+		#if SIZE > 16
+		,__global int * hp4
+		#endif
+		#if SIZE > 32
+		,__global int * hp5
+		#endif
         #if SIZE > 64
-		__global int * hp6,
+		,__global int * hp6
         #endif
         #if SIZE > 128
-		__global int * hp7,
+		,__global int * hp7
         #endif
         #if SIZE > 256
-		__global int * hp8, 
+		,__global int * hp8
         #endif
         #if SIZE > 512
-		__global int * hp9, 
-        #endif
-        __global float * VBOBuffer,
-		__private int isolevel,
-		__private int sum
+		,__global int * hp9
+        #endif        
         ) {
 	
 	int target = get_global_id(0);
@@ -466,9 +472,15 @@ __kernel void traverseHP(
     #if SIZE > 64
     cubePosition = scanHPLevel(target, hp6, cubePosition);
     #endif
+	#if SIZE > 32
     cubePosition = scanHPLevel(target, hp5, cubePosition);
+	#endif
+	#if SIZE > 16
     cubePosition = scanHPLevel(target, hp4, cubePosition);
+	#endif
+	#if SIZE > 8 
     cubePosition = scanHPLevel(target, hp3, cubePosition);
+	#endif
     cubePosition = scanHPLevel(target, hp2, cubePosition);
     cubePosition = scanHPLevel(target, hp1, cubePosition);
     cubePosition = scanHPLevel(target, hp0, cubePosition);
@@ -488,20 +500,20 @@ __kernel void traverseHP(
         // Store vertex in VBO
 		
         const float3 forwardDifference0 = (float3)(
-                (float)(-read_imagei(rawData, sampler, (int4)(point0.x+1, point0.y, point0.z, 0)).x+read_imagei(rawData, sampler, (int4)(point0.x-1, point0.y, point0.z, 0)).x),
-                (float)(-read_imagei(rawData, sampler, (int4)(point0.x, point0.y+1, point0.z, 0)).x+read_imagei(rawData, sampler, (int4)(point0.x, point0.y-1, point0.z, 0)).x),
-                (float)(-read_imagei(rawData, sampler, (int4)(point0.x, point0.y, point0.z+1, 0)).x+read_imagei(rawData, sampler, (int4)(point0.x, point0.y, point0.z-1, 0)).x)
+                (float)(-read_imagef(rawData, sampler, (int4)(point0.x+1, point0.y, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x-1, point0.y, point0.z, 0)).x),
+                (float)(-read_imagef(rawData, sampler, (int4)(point0.x, point0.y+1, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x, point0.y-1, point0.z, 0)).x),
+                (float)(-read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z+1, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z-1, 0)).x)
             );
         const float3 forwardDifference1 = (float3)(
-                (float)(-read_imagei(rawData, sampler, (int4)(point1.x+1, point1.y, point1.z, 0)).x+read_imagei(rawData, sampler, (int4)(point1.x-1, point1.y, point1.z, 0)).x),
-                (float)(-read_imagei(rawData, sampler, (int4)(point1.x, point1.y+1, point1.z, 0)).x+read_imagei(rawData, sampler, (int4)(point1.x, point1.y-1, point1.z, 0)).x),
-                (float)(-read_imagei(rawData, sampler, (int4)(point1.x, point1.y, point1.z+1, 0)).x+read_imagei(rawData, sampler, (int4)(point1.x, point1.y, point1.z-1, 0)).x)
+                (float)(-read_imagef(rawData, sampler, (int4)(point1.x+1, point1.y, point1.z, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x-1, point1.y, point1.z, 0)).x),
+                (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y+1, point1.z, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y-1, point1.z, 0)).x),
+                (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z+1, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z-1, 0)).x)
             );
 
-	    const int value0 = read_imagei(rawData, sampler, (int4)(point0.x, point0.y, point0.z, 0)).x;
+	    const float value0 = read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z, 0)).x;
 		const float diff = native_divide(
 			(float)(isolevel-value0), 
-			(float)(read_imagei(rawData, sampler, (int4)(point1.x, point1.y, point1.z, 0)).x - value0));
+			(float)(read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z, 0)).x - value0));
         
 		const float3 vertex = mix((float3)(point0.x, point0.y, point0.z), (float3)(point1.x, point1.y, point1.z), diff);
 
@@ -511,6 +523,14 @@ __kernel void traverseHP(
 		vstore3(vertex, target*6 + vertexNr*2, VBOBuffer);
 		vstore3(normal, target*6 + vertexNr*2 + 1, VBOBuffer);
 
+		if(target == 0)
+		{
+			printf("Point0: %i %i %i\n", point0.x, point0.y, point0.z);
+			printf("Point1: %i %i %i\n", point1.x, point1.y, point1.z);
+			printf("Value: %f\nDiff: %f\n", value0, diff); 
+			printf("%f %f %f \n", vertex.x, vertex.y, vertex.z);
+		} 
+			
 
         ++vertexNr;
     }
