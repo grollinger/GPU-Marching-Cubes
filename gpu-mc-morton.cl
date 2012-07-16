@@ -497,8 +497,7 @@ __kernel void traverseHP(
 		const int3 point0 = (int3)(cubePosition.x + offsets3[edge*6], cubePosition.y + offsets3[edge*6+1], cubePosition.z + offsets3[edge*6+2]);
 		const int3 point1 = (int3)(cubePosition.x + offsets3[edge*6+3], cubePosition.y + offsets3[edge*6+4], cubePosition.z + offsets3[edge*6+5]);
 
-        // Store vertex in VBO
-		/*
+        // Store vertex in VBO		
         const float3 forwardDifference0 = (float3)(
                 (float)(-read_imagef(rawData, sampler, (int4)(point0.x+1, point0.y, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x-1, point0.y, point0.z, 0)).x),
                 (float)(-read_imagef(rawData, sampler, (int4)(point0.x, point0.y+1, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x, point0.y-1, point0.z, 0)).x),
@@ -509,7 +508,7 @@ __kernel void traverseHP(
                 (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y+1, point1.z, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y-1, point1.z, 0)).x),
                 (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z+1, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z-1, 0)).x)
             );
-		*/
+		
 
 	    const float value0 = read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z, 0)).x;
 		const float diff = native_divide(
@@ -518,11 +517,11 @@ __kernel void traverseHP(
         
 		const float3 vertex = mix((float3)(point0.x, point0.y, point0.z), (float3)(point1.x, point1.y, point1.z), diff);
 
-		//const float3 normal = mix(forwardDifference0, forwardDifference1, diff);
+		const float3 normal = mix(forwardDifference0, forwardDifference1, diff);
 
 
-		vstore3(vertex, target*3 + vertexNr, VBOBuffer);
-		//vstore3(normal, target*6 + vertexNr*2 + 1, VBOBuffer);		 
+		vstore3(vertex, target*6 + vertexNr*2, VBOBuffer);
+		vstore3(normal, target*6 + vertexNr*2 + 1, VBOBuffer);		 
 			
 
         ++vertexNr;
