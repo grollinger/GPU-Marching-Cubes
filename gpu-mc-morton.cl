@@ -55,6 +55,81 @@ __constant int4 cubeOffsets[8] = {
 		{1, 1, 1, 0},
 	}; 
 
+__kernel void constructHPLevelCharChar(
+		__global uchar * readHistoPyramid, 
+		__global uchar * writeHistoPyramid
+	) {	
+
+	uint writePos = EncodeMorton3(get_global_id(0), get_global_id(1), get_global_id(2));
+	uint readPos = EncodeMorton3(get_global_id(0)*2, get_global_id(1)*2, get_global_id(2)*2);
+	uchar writeValue = readHistoPyramid[readPos] + 
+                    readHistoPyramid[readPos + 1] + 
+                    readHistoPyramid[readPos + 2] + 
+                    readHistoPyramid[readPos + 3] + 
+                    readHistoPyramid[readPos + 4] + 
+                    readHistoPyramid[readPos + 5] + 
+                    readHistoPyramid[readPos + 6] + 
+                    readHistoPyramid[readPos + 7]; 
+
+    writeHistoPyramid[writePos] = writeValue;
+}
+
+__kernel void constructHPLevelCharShort(
+		__global uchar * readHistoPyramid, 
+		__global ushort * writeHistoPyramid
+	) {	
+
+	uint writePos = EncodeMorton3(get_global_id(0), get_global_id(1), get_global_id(2));
+	uint readPos = EncodeMorton3(get_global_id(0)*2, get_global_id(1)*2, get_global_id(2)*2);
+	ushort writeValue = readHistoPyramid[readPos] + 
+                    readHistoPyramid[readPos + 1] + 
+                    readHistoPyramid[readPos + 2] + 
+                    readHistoPyramid[readPos + 3] + 
+                    readHistoPyramid[readPos + 4] + 
+                    readHistoPyramid[readPos + 5] + 
+                    readHistoPyramid[readPos + 6] + 
+                    readHistoPyramid[readPos + 7]; 
+
+    writeHistoPyramid[writePos] = writeValue;
+}
+__kernel void constructHPLevelShortShort(
+		__global ushort * readHistoPyramid, 
+		__global ushort * writeHistoPyramid
+	) {	
+
+	uint writePos = EncodeMorton3(get_global_id(0), get_global_id(1), get_global_id(2));
+	uint readPos = EncodeMorton3(get_global_id(0)*2, get_global_id(1)*2, get_global_id(2)*2);
+	ushort writeValue = readHistoPyramid[readPos] + 
+                    readHistoPyramid[readPos + 1] + 
+                    readHistoPyramid[readPos + 2] + 
+                    readHistoPyramid[readPos + 3] + 
+                    readHistoPyramid[readPos + 4] + 
+                    readHistoPyramid[readPos + 5] + 
+                    readHistoPyramid[readPos + 6] + 
+                    readHistoPyramid[readPos + 7]; 
+
+    writeHistoPyramid[writePos] = writeValue;
+}
+
+__kernel void constructHPLevelShortInt(
+		__global ushort * readHistoPyramid, 
+		__global int * writeHistoPyramid
+	) {	
+
+	uint writePos = EncodeMorton3(get_global_id(0), get_global_id(1), get_global_id(2));
+	uint readPos = EncodeMorton3(get_global_id(0)*2, get_global_id(1)*2, get_global_id(2)*2);
+	int writeValue = readHistoPyramid[readPos] + 
+                    readHistoPyramid[readPos + 1] + 
+                    readHistoPyramid[readPos + 2] + 
+                    readHistoPyramid[readPos + 3] + 
+                    readHistoPyramid[readPos + 4] + 
+                    readHistoPyramid[readPos + 5] + 
+                    readHistoPyramid[readPos + 6] + 
+                    readHistoPyramid[readPos + 7]; 
+
+    writeHistoPyramid[writePos] = writeValue;
+}
+
 __kernel void constructHPLevel(
 		__global uint * readHistoPyramid, 
 		__global uint * writeHistoPyramid
@@ -74,7 +149,7 @@ __kernel void constructHPLevel(
     writeHistoPyramid[writePos] = writeValue;
 }
 
-int4 scanHPLevel(int target, __global int * hp, int4 current) {   
+int4 scanHPLevelShort(int target, __global ushort * hp, int4 current) {
 
 	int8 neighbors = {
 		hp[EncodeMorton(current)],
@@ -87,7 +162,100 @@ int4 scanHPLevel(int target, __global int * hp, int4 current) {
 		hp[EncodeMorton(current + cubeOffsets[7])],
 	};
 
-   
+	int acc = current.s3 + neighbors.s0;
+	int8 cmp;
+	cmp.s0 = acc <= target;
+	acc += neighbors.s1;
+	cmp.s1 = acc <= target;
+	acc += neighbors.s2;
+	cmp.s2 = acc <= target;
+	acc += neighbors.s3;
+	cmp.s3 = acc <= target;
+	acc += neighbors.s4;
+	cmp.s4 = acc <= target;
+	acc += neighbors.s5;
+	cmp.s5 = acc <= target;
+	acc += neighbors.s6;
+	cmp.s6 = acc <= target;
+	cmp.s7 = 0;
+
+
+	current += cubeOffsets[(cmp.s0+cmp.s1+cmp.s2+cmp.s3+cmp.s4+cmp.s5+cmp.s6+cmp.s7)];
+	current.s0 = current.s0*2;
+	current.s1 = current.s1*2;
+	current.s2 = current.s2*2;
+	current.s3 = current.s3 +
+		cmp.s0*neighbors.s0 + 
+		cmp.s1*neighbors.s1 + 
+		cmp.s2*neighbors.s2 + 
+		cmp.s3*neighbors.s3 + 
+		cmp.s4*neighbors.s4 + 
+		cmp.s5*neighbors.s5 + 
+		cmp.s6*neighbors.s6 + 
+		cmp.s7*neighbors.s7;
+	return current;
+
+}
+int4 scanHPLevelChar(int target, __global uchar * hp, int4 current) {
+
+	int8 neighbors = {
+		hp[EncodeMorton(current)],
+		hp[EncodeMorton(current + cubeOffsets[1])],
+		hp[EncodeMorton(current + cubeOffsets[2])],
+		hp[EncodeMorton(current + cubeOffsets[3])],
+		hp[EncodeMorton(current + cubeOffsets[4])],
+		hp[EncodeMorton(current + cubeOffsets[5])],
+		hp[EncodeMorton(current + cubeOffsets[6])],
+		hp[EncodeMorton(current + cubeOffsets[7])],
+	};
+
+	int acc = current.s3 + neighbors.s0;
+	int8 cmp;
+	cmp.s0 = acc <= target;
+	acc += neighbors.s1;
+	cmp.s1 = acc <= target;
+	acc += neighbors.s2;
+	cmp.s2 = acc <= target;
+	acc += neighbors.s3;
+	cmp.s3 = acc <= target;
+	acc += neighbors.s4;
+	cmp.s4 = acc <= target;
+	acc += neighbors.s5;
+	cmp.s5 = acc <= target;
+	acc += neighbors.s6;
+	cmp.s6 = acc <= target;
+	cmp.s7 = 0;
+
+
+	current += cubeOffsets[(cmp.s0+cmp.s1+cmp.s2+cmp.s3+cmp.s4+cmp.s5+cmp.s6+cmp.s7)];
+	current.s0 = current.s0*2;
+	current.s1 = current.s1*2;
+	current.s2 = current.s2*2;
+	current.s3 = current.s3 +
+		cmp.s0*neighbors.s0 + 
+		cmp.s1*neighbors.s1 + 
+		cmp.s2*neighbors.s2 + 
+		cmp.s3*neighbors.s3 + 
+		cmp.s4*neighbors.s4 + 
+		cmp.s5*neighbors.s5 + 
+		cmp.s6*neighbors.s6 + 
+		cmp.s7*neighbors.s7;
+	return current;
+
+}
+
+int4 scanHPLevel(int target, __global uint * hp, int4 current) {
+
+	int8 neighbors = {
+		hp[EncodeMorton(current)],
+		hp[EncodeMorton(current + cubeOffsets[1])],
+		hp[EncodeMorton(current + cubeOffsets[2])],
+		hp[EncodeMorton(current + cubeOffsets[3])],
+		hp[EncodeMorton(current + cubeOffsets[4])],
+		hp[EncodeMorton(current + cubeOffsets[5])],
+		hp[EncodeMorton(current + cubeOffsets[6])],
+		hp[EncodeMorton(current + cubeOffsets[7])],
+	};
 
 	int acc = current.s3 + neighbors.s0;
 	int8 cmp;
@@ -426,32 +594,33 @@ __constant char triTable[4096] =
 __kernel void traverseHP(
         __read_only image3d_t rawData,
         __read_only image3d_t cubeIndexes,
+<<<<<<< HEAD
 		__global float * VBOBuffer,
 		__private float isolevel,
 		__private uint sum,
-        __global uint * hp0, // Largest HP
-		__global uint * hp1,
-		__global uint * hp2
+        __global uchar * hp0, // Largest HP
+		__global uchar * hp1,
+		__global ushort * hp2
 		#if SIZE > 8
-		,__global int * hp3
+		,__global ushort * hp3
 		#endif
 		#if SIZE > 16
-		,__global int * hp4
+		,__global ushort * hp4
 		#endif
 		#if SIZE > 32
-		,__global int * hp5
+		,__global uint * hp5
 		#endif
         #if SIZE > 64
-		,__global int * hp6
+		,__global uint * hp6
         #endif
         #if SIZE > 128
-		,__global int * hp7
+		,__global uint * hp7
         #endif
         #if SIZE > 256
-		,__global int * hp8
+		,__global uint * hp8
         #endif
         #if SIZE > 512
-		,__global int * hp9
+		,__global uint * hp9
         #endif        
         ) {
 	
@@ -476,14 +645,14 @@ __kernel void traverseHP(
     cubePosition = scanHPLevel(target, hp5, cubePosition);
 	#endif
 	#if SIZE > 16
-    cubePosition = scanHPLevel(target, hp4, cubePosition);
+    cubePosition = scanHPLevelShort(target, hp4, cubePosition);
 	#endif
 	#if SIZE > 8 
-    cubePosition = scanHPLevel(target, hp3, cubePosition);
+    cubePosition = scanHPLevelShort(target, hp3, cubePosition);
 	#endif
-    cubePosition = scanHPLevel(target, hp2, cubePosition);
-    cubePosition = scanHPLevel(target, hp1, cubePosition);
-    cubePosition = scanHPLevel(target, hp0, cubePosition);
+    cubePosition = scanHPLevelShort(target, hp2, cubePosition);
+    cubePosition = scanHPLevelChar(target, hp1, cubePosition);
+    cubePosition = scanHPLevelChar(target, hp0, cubePosition);
 	cubePosition.x = cubePosition.x / 2;
 	cubePosition.y = cubePosition.y / 2;
 	cubePosition.z = cubePosition.z / 2;
@@ -532,7 +701,7 @@ __kernel void traverseHP(
 __constant uchar nrOfTriangles[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5, 3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4, 3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0};
 
 __kernel void classifyCubes(
-		__global int * histoPyramid, 
+		__global uchar * histoPyramid, 
         __global uchar * cubeIndexes,
 		__read_only image3d_t rawData,
 		__private float isolevel
