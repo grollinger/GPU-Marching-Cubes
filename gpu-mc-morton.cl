@@ -594,7 +594,6 @@ __constant char triTable[4096] =
 __kernel void traverseHP(
         __read_only image3d_t rawData,
         __read_only image3d_t cubeIndexes,
-<<<<<<< HEAD
 		__global float * VBOBuffer,
 		__private float isolevel,
 		__private uint sum,
