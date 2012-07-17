@@ -74,7 +74,7 @@ __kernel void constructHPLevel(
     writeHistoPyramid[writePos] = writeValue;
 }
 
-int4 scanHPLevel(int target, __global int * hp, int4 current) {   
+int4 scanHPLevel(int target, __global uint * hp, int4 current) {   
 
 	int8 neighbors = {
 		hp[EncodeMorton(current)],
@@ -433,25 +433,25 @@ __kernel void traverseHP(
 		__global uint * hp1,
 		__global uint * hp2
 		#if SIZE > 8
-		,__global int * hp3
+		,__global uint * hp3
 		#endif
 		#if SIZE > 16
-		,__global int * hp4
+		,__global uint * hp4
 		#endif
 		#if SIZE > 32
-		,__global int * hp5
+		,__global uint * hp5
 		#endif
         #if SIZE > 64
-		,__global int * hp6
+		,__global uint * hp6
         #endif
         #if SIZE > 128
-		,__global int * hp7
+		,__global uint * hp7
         #endif
         #if SIZE > 256
-		,__global int * hp8
+		,__global uint * hp8
         #endif
         #if SIZE > 512
-		,__global int * hp9
+		,__global uint * hp9
         #endif        
         ) {
 	
@@ -511,13 +511,14 @@ __kernel void traverseHP(
 		
 
 	    const float value0 = read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z, 0)).x;
+		const float value1 = read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z, 0)).x;
 		const float diff = native_divide(
-			(float)(isolevel-value0), 
-			(float)(read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z, 0)).x - value0));
-        
+			(isolevel - value0), 
+			(value1 - value0));
+        //const float normal_scalar = (value0 <= value1) ? -1.0f : 1.0f;
 		const float3 vertex = mix((float3)(point0.x, point0.y, point0.z), (float3)(point1.x, point1.y, point1.z), diff);
 
-		const float3 normal = mix(forwardDifference0, forwardDifference1, diff);
+		const float3 normal = mix(forwardDifference0, forwardDifference1, diff);// * normal_scalar;
 
 
 		vstore3(vertex, target*6 + vertexNr*2, VBOBuffer);
@@ -531,16 +532,17 @@ __kernel void traverseHP(
 __constant uchar nrOfTriangles[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5, 3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4, 3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0};
 
 __kernel void classifyCubes(
-		__global int * histoPyramid, 
+		__global uint * histoPyramid, 
         __global uchar * cubeIndexes,
 		__read_only image3d_t rawData,
 		__private float isolevel
 		) {
     int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
-
+	int3 max_pos = {get_global_size(0)-1, get_global_size(1)-1, get_global_size(2)-1};
     // Find cube class nr
 	const float first = read_imagef(rawData, sampler, pos).x;
     const uchar cubeindex = 
+	(any(pos.xyz == max_pos)) ? 0 : //correct edge voxels (clamping)
     ((first > isolevel)) |
     ((read_imagef(rawData, sampler, pos + cubeOffsets[1]).x > isolevel) << 1) |
     ((read_imagef(rawData, sampler, pos + cubeOffsets[3]).x > isolevel) << 2) |
@@ -549,9 +551,16 @@ __kernel void classifyCubes(
     ((read_imagef(rawData, sampler, pos + cubeOffsets[5]).x > isolevel) << 5) |
     ((read_imagef(rawData, sampler, pos + cubeOffsets[7]).x > isolevel) << 6) |
     ((read_imagef(rawData, sampler, pos + cubeOffsets[6]).x > isolevel) << 7);
+	
 
     // Store number of triangles and index
     uint writePos = EncodeMorton3(pos.x,pos.y,pos.z);
     histoPyramid[writePos] = nrOfTriangles[cubeindex];
     cubeIndexes[pos.x+pos.y*get_global_size(0)+pos.z*get_global_size(0)*get_global_size(1)] = cubeindex;
+
+
+	if(cubeindex != 0)
+	{
+		printf("x:%i y:%i z:%i cube:%i 6: %f \n",pos.x,pos.y,pos.z, cubeindex, read_imagef(rawData, sampler, pos + cubeOffsets[6]).x);
+	}
 }
