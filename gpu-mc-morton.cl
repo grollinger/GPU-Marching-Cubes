@@ -1,4 +1,4 @@
-#pragma OPENCL EXTENSION cl_amd_printf:enable
+//#pragma OPENCL EXTENSION cl_amd_printf:enable
 
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
@@ -538,29 +538,49 @@ __kernel void classifyCubes(
 		__private float isolevel
 		) {
     int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
-	int3 max_pos = {get_global_size(0)-1, get_global_size(1)-1, get_global_size(2)-1};
+	int4 max_pos = {get_global_size(0)-1, get_global_size(1)-1, get_global_size(2)-1, 1};
     // Find cube class nr
-	const float first = read_imagef(rawData, sampler, pos).x;
+	float8 cube_values = (float8)(
+		read_imagef(rawData, sampler, pos).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[1]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[3]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[2]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[4]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[5]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[7]).x,
+		read_imagef(rawData, sampler, pos + cubeOffsets[6]).x
+		);
+#ifdef GUARD_EDGES	
+	const int4 min_pos = (int4)(0,0,0,1);
+	const int8 edge_bits = (int8)(
+		any(pos == max_pos | pos == min_pos),
+		any(pos + cubeOffsets[1] == max_pos | pos + cubeOffsets[1] == min_pos),
+		any(pos + cubeOffsets[3] == max_pos| pos + cubeOffsets[3] == min_pos),
+		any(pos + cubeOffsets[2] == max_pos| pos + cubeOffsets[2] == min_pos),
+		any(pos + cubeOffsets[4] == max_pos| pos + cubeOffsets[4] == min_pos),
+		any(pos + cubeOffsets[5] == max_pos| pos + cubeOffsets[5] == min_pos),
+		any(pos + cubeOffsets[7] == max_pos| pos + cubeOffsets[7] == min_pos),
+		any(pos + cubeOffsets[6] == max_pos| pos + cubeOffsets[6] == min_pos)
+		);
+	const float8 free_space = (float8)(1,1,1,1,1,1,1,1);
+
+	cube_values = select(cube_values, free_space, edge_bits);
+#endif
+	
     const uchar cubeindex = 
-	(any(pos.xyz == max_pos)) ? 0 : //correct edge voxels (clamping)
-    ((first > isolevel)) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[1]).x > isolevel) << 1) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[3]).x > isolevel) << 2) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[2]).x > isolevel) << 3) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[4]).x > isolevel) << 4) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[5]).x > isolevel) << 5) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[7]).x > isolevel) << 6) |
-    ((read_imagef(rawData, sampler, pos + cubeOffsets[6]).x > isolevel) << 7);
+	(any(pos.xyz == max_pos.xyz)) ? 0 : //correct edge voxels (clamping)
+    ((cube_values.s0 > isolevel)	   |
+    ((cube_values.s1 > isolevel) << 1) |
+    ((cube_values.s2 > isolevel) << 2) |
+    ((cube_values.s3 > isolevel) << 3) |
+    ((cube_values.s4 > isolevel) << 4) |
+    ((cube_values.s5 > isolevel) << 5) |
+    ((cube_values.s6 > isolevel) << 6) |
+    ((cube_values.s7 > isolevel) << 7));
 	
 
     // Store number of triangles and index
     uint writePos = EncodeMorton3(pos.x,pos.y,pos.z);
     histoPyramid[writePos] = nrOfTriangles[cubeindex];
-    cubeIndexes[pos.x+pos.y*get_global_size(0)+pos.z*get_global_size(0)*get_global_size(1)] = cubeindex;
-
-
-	if(cubeindex != 0)
-	{
-		printf("x:%i y:%i z:%i cube:%i 6: %f \n",pos.x,pos.y,pos.z, cubeindex, read_imagef(rawData, sampler, pos + cubeOffsets[6]).x);
-	}
+    cubeIndexes[pos.x+pos.y*get_global_size(0)+pos.z*get_global_size(0)*get_global_size(1)] = cubeindex;	
 }
