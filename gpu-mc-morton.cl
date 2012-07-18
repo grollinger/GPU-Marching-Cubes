@@ -511,7 +511,7 @@ __kernel void traverseHP(
 
 	// max 5 triangles
     uchar cubeindex = read_imageui(cubeIndexes, sampler, cubePosition).x;
-	for(int i = (target-cubePosition.s3)*3; i < (target-cubePosition.s3+1)*3; i++) { // for each vertex in triangle
+    for(int i = ((target-cubePosition.s3+1)*3) -1; i >= (target-cubePosition.s3)*3 ; --i) { // for each vertex in triangle
 		const uchar edge = triTable[cubeindex*16 + i];
 		const int3 point0 = (int3)(cubePosition.x + offsets3[edge*6], cubePosition.y + offsets3[edge*6+1], cubePosition.z + offsets3[edge*6+2]);
 		const int3 point1 = (int3)(cubePosition.x + offsets3[edge*6+3], cubePosition.y + offsets3[edge*6+4], cubePosition.z + offsets3[edge*6+5]);
@@ -529,16 +529,15 @@ __kernel void traverseHP(
             );
 		
 
-	    const float value0 = read_voxel(rawData, (int4)(point0.x, point0.y, point0.z, 0));
-		const float value1 = read_voxel(rawData, (int4)(point1.x, point1.y, point1.z, 0));
+	    const float value0 = read_voxel(rawData, (int4)(point0.xyz, 0));
+		const float value1 = read_voxel(rawData, (int4)(point1.xyz, 0));
 		const float diff = native_divide(
 			(isolevel - value0), 
 			(value1 - value0));
         //const float normal_scalar = (value0 <= value1) ? -1.0f : 1.0f;
 		const float3 vertex = mix(convert_float3(point0.xyz), convert_float3(point1.xyz), diff);
 
-		const float3 normal = mix(forwardDifference0, forwardDifference1, diff);// * normal_scalar;
-
+		const float3 normal = mix(forwardDifference0, forwardDifference1, diff) ;
 
 		vstore3(vertex, target*6 + vertexNr*2, VBOBuffer);
 		vstore3(normal, target*6 + vertexNr*2 + 1, VBOBuffer);		 
