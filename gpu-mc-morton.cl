@@ -1,6 +1,12 @@
 //#pragma OPENCL EXTENSION cl_amd_printf:enable
 
+#define FREE_SPACE 1.0f
+
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+
+
+__constant int3 max_pos = (int3)(SIZE-1, SIZE-1, SIZE-1);
+__constant int3 min_pos = (int3)(0,0,0);
 
 /* Morton Code Functions - Kudos to http://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/ */
 
@@ -423,6 +429,19 @@ __constant char triTable[4096] =
 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
 
+float read_voxel(read_only image3d_t space, int4 indices)
+{
+#ifdef GUARD_EDGES
+	if(any((indices.xyz == min_pos) | (indices.xyz == max_pos)))
+	{		
+		return FREE_SPACE;
+	}
+
+	
+#endif
+	return read_imagef(space, sampler, indices).x;
+}
+
 __kernel void traverseHP(
         __read_only image3d_t rawData,
         __read_only image3d_t cubeIndexes,
@@ -499,24 +518,24 @@ __kernel void traverseHP(
 
         // Store vertex in VBO		
         const float3 forwardDifference0 = (float3)(
-                (float)(-read_imagef(rawData, sampler, (int4)(point0.x+1, point0.y, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x-1, point0.y, point0.z, 0)).x),
-                (float)(-read_imagef(rawData, sampler, (int4)(point0.x, point0.y+1, point0.z, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x, point0.y-1, point0.z, 0)).x),
-                (float)(-read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z+1, 0)).x+read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z-1, 0)).x)
+                (float)(-read_voxel(rawData, (int4)(point0.x+1, point0.y, point0.z, 0))+read_voxel(rawData, (int4)(point0.x-1, point0.y, point0.z, 0))),
+                (float)(-read_voxel(rawData, (int4)(point0.x, point0.y+1, point0.z, 0))+read_voxel(rawData, (int4)(point0.x, point0.y-1, point0.z, 0))),
+                (float)(-read_voxel(rawData, (int4)(point0.x, point0.y, point0.z+1, 0))+read_voxel(rawData, (int4)(point0.x, point0.y, point0.z-1, 0)))
             );
         const float3 forwardDifference1 = (float3)(
-                (float)(-read_imagef(rawData, sampler, (int4)(point1.x+1, point1.y, point1.z, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x-1, point1.y, point1.z, 0)).x),
-                (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y+1, point1.z, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y-1, point1.z, 0)).x),
-                (float)(-read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z+1, 0)).x+read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z-1, 0)).x)
+                (float)(-read_voxel(rawData, (int4)(point1.x+1, point1.y, point1.z, 0))+read_voxel(rawData, (int4)(point1.x-1, point1.y, point1.z, 0))),
+                (float)(-read_voxel(rawData, (int4)(point1.x, point1.y+1, point1.z, 0))+read_voxel(rawData, (int4)(point1.x, point1.y-1, point1.z, 0))),
+                (float)(-read_voxel(rawData, (int4)(point1.x, point1.y, point1.z+1, 0))+read_voxel(rawData, (int4)(point1.x, point1.y, point1.z-1, 0)))
             );
 		
 
-	    const float value0 = read_imagef(rawData, sampler, (int4)(point0.x, point0.y, point0.z, 0)).x;
-		const float value1 = read_imagef(rawData, sampler, (int4)(point1.x, point1.y, point1.z, 0)).x;
+	    const float value0 = read_voxel(rawData, (int4)(point0.x, point0.y, point0.z, 0));
+		const float value1 = read_voxel(rawData, (int4)(point1.x, point1.y, point1.z, 0));
 		const float diff = native_divide(
 			(isolevel - value0), 
 			(value1 - value0));
         //const float normal_scalar = (value0 <= value1) ? -1.0f : 1.0f;
-		const float3 vertex = mix((float3)(point0.x, point0.y, point0.z), (float3)(point1.x, point1.y, point1.z), diff);
+		const float3 vertex = mix(convert_float3(point0.xyz), convert_float3(point1.xyz), diff);
 
 		const float3 normal = mix(forwardDifference0, forwardDifference1, diff);// * normal_scalar;
 
@@ -537,50 +556,32 @@ __kernel void classifyCubes(
 		__read_only image3d_t rawData,
 		__private float isolevel
 		) {
-    int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
-	int4 max_pos = {get_global_size(0)-1, get_global_size(1)-1, get_global_size(2)-1, 1};
+    int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};	
     // Find cube class nr
-	float8 cube_values = (float8)(
-		read_imagef(rawData, sampler, pos).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[1]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[3]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[2]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[4]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[5]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[7]).x,
-		read_imagef(rawData, sampler, pos + cubeOffsets[6]).x
-		);
-#ifdef GUARD_EDGES	
-	const int4 min_pos = (int4)(0,0,0,1);
-	const int8 edge_bits = (int8)(
-		any(pos == max_pos | pos == min_pos),
-		any(pos + cubeOffsets[1] == max_pos | pos + cubeOffsets[1] == min_pos),
-		any(pos + cubeOffsets[3] == max_pos| pos + cubeOffsets[3] == min_pos),
-		any(pos + cubeOffsets[2] == max_pos| pos + cubeOffsets[2] == min_pos),
-		any(pos + cubeOffsets[4] == max_pos| pos + cubeOffsets[4] == min_pos),
-		any(pos + cubeOffsets[5] == max_pos| pos + cubeOffsets[5] == min_pos),
-		any(pos + cubeOffsets[7] == max_pos| pos + cubeOffsets[7] == min_pos),
-		any(pos + cubeOffsets[6] == max_pos| pos + cubeOffsets[6] == min_pos)
-		);
-	const float8 free_space = (float8)(1,1,1,1,1,1,1,1);
-
-	cube_values = select(cube_values, free_space, edge_bits);
-#endif
+	const uint8 cube_bits = convert_uint8((float8)(
+		read_voxel(rawData, pos),
+		read_voxel(rawData, pos + cubeOffsets[1]),
+		read_voxel(rawData, pos + cubeOffsets[3]),
+		read_voxel(rawData, pos + cubeOffsets[2]),
+		read_voxel(rawData, pos + cubeOffsets[4]),
+		read_voxel(rawData, pos + cubeOffsets[5]),
+		read_voxel(rawData, pos + cubeOffsets[7]),
+		read_voxel(rawData, pos + cubeOffsets[6])
+		) > isolevel) >> 31;
 	
     const uchar cubeindex = 
 	(any(pos.xyz == max_pos.xyz)) ? 0 : //correct edge voxels (clamping)
-    ((cube_values.s0 > isolevel)	   |
-    ((cube_values.s1 > isolevel) << 1) |
-    ((cube_values.s2 > isolevel) << 2) |
-    ((cube_values.s3 > isolevel) << 3) |
-    ((cube_values.s4 > isolevel) << 4) |
-    ((cube_values.s5 > isolevel) << 5) |
-    ((cube_values.s6 > isolevel) << 6) |
-    ((cube_values.s7 > isolevel) << 7));
+    (cube_bits.s0)	    |
+    (cube_bits.s1) << 1 |
+    (cube_bits.s2) << 2 |
+    (cube_bits.s3) << 3 |
+    (cube_bits.s4) << 4 |
+    (cube_bits.s5) << 5 |
+    (cube_bits.s6) << 6 |
+    (cube_bits.s7) << 7;
 	
-
     // Store number of triangles and index
     uint writePos = EncodeMorton3(pos.x,pos.y,pos.z);
     histoPyramid[writePos] = nrOfTriangles[cubeindex];
-    cubeIndexes[pos.x+pos.y*get_global_size(0)+pos.z*get_global_size(0)*get_global_size(1)] = cubeindex;	
+    cubeIndexes[pos.x+pos.y*get_global_size(0)+pos.z*get_global_size(0)*get_global_size(1)] = cubeindex;
 }
