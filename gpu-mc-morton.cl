@@ -1,4 +1,6 @@
+#ifdef VERBOSE
 #pragma OPENCL EXTENSION cl_amd_printf:enable
+#endif
 
 #define FREE_SPACE 1.0f
 
@@ -79,7 +81,9 @@ __kernel void constructHPLevel(
 
     writeHistoPyramid[writePos] = writeValue;
 
+#ifdef VERBOSE
     printf("HP: %i %i %i\n", readPos, writePos, writeValue);
+#endif
 }
 
 int4 scanHPLevel(int target, __global uint * hp, int4 current) {   
@@ -508,8 +512,10 @@ __kernel void traverseHP(
 	cubePosition.y = cubePosition.y / 2;
 	cubePosition.z = cubePosition.z / 2;
 
+#ifdef VERBOSE
 	if(target % 10 == 0)
 		printf("%i %i %i %i\n", target, cubePosition.x, cubePosition.y, cubePosition.z);
+#endif
 
     char vertexNr = 0;
 
@@ -576,7 +582,9 @@ __kernel void classifyCubes(
     if(any(pos.xyz == max_pos.xyz))
     {
     	cubeindex = 0;//correct edge voxels (clamping)
+#ifdef VERBOSE
     	printf("edge: %i=%i %i=%i %i=%i\n", pos.x, max_pos.x, pos.y, max_pos.y, pos.z, max_pos.z);
+#endif
     }
     else
     	cubeindex =
