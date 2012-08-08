@@ -1,4 +1,4 @@
-//#pragma OPENCL EXTENSION cl_amd_printf:enable
+#pragma OPENCL EXTENSION cl_amd_printf:enable
 
 #define FREE_SPACE 1.0f
 
@@ -78,6 +78,8 @@ __kernel void constructHPLevel(
                     readHistoPyramid[readPos + 7]; 
 
     writeHistoPyramid[writePos] = writeValue;
+
+    printf("HP: %i %i %i\n", readPos, writePos, writeValue);
 }
 
 int4 scanHPLevel(int target, __global uint * hp, int4 current) {   
@@ -436,9 +438,8 @@ float read_voxel(read_only image3d_t space, int4 indices)
 	{		
 		return FREE_SPACE;
 	}
-
-	
 #endif
+	
 	return read_imagef(space, sampler, indices).x;
 }
 
@@ -476,36 +477,39 @@ __kernel void traverseHP(
 	
 	int target = get_global_id(0);
 	if(target >= sum)
-		target = 0;
+		return;
 
 	int4 cubePosition = {0,0,0,0}; // x,y,z,sum
-    #if SIZE > 512
-    cubePosition = scanHPLevel(target, hp9, cubePosition);
-    #endif
-    #if SIZE > 256
-    cubePosition = scanHPLevel(target, hp8, cubePosition);
-    #endif
-    #if SIZE > 128
-    cubePosition = scanHPLevel(target, hp7, cubePosition);
-    #endif
-    #if SIZE > 64
-    cubePosition = scanHPLevel(target, hp6, cubePosition);
-    #endif
+	#if SIZE > 512
+	cubePosition = scanHPLevel(target, hp9, cubePosition);
+	#endif
+	#if SIZE > 256
+	cubePosition = scanHPLevel(target, hp8, cubePosition);
+	#endif
+	#if SIZE > 128
+	cubePosition = scanHPLevel(target, hp7, cubePosition);
+	#endif
+	#if SIZE > 64
+	cubePosition = scanHPLevel(target, hp6, cubePosition);
+	#endif
 	#if SIZE > 32
-    cubePosition = scanHPLevel(target, hp5, cubePosition);
+	cubePosition = scanHPLevel(target, hp5, cubePosition);
 	#endif
 	#if SIZE > 16
-    cubePosition = scanHPLevel(target, hp4, cubePosition);
+	cubePosition = scanHPLevel(target, hp4, cubePosition);
 	#endif
 	#if SIZE > 8 
-    cubePosition = scanHPLevel(target, hp3, cubePosition);
+	cubePosition = scanHPLevel(target, hp3, cubePosition);
 	#endif
-    cubePosition = scanHPLevel(target, hp2, cubePosition);
-    cubePosition = scanHPLevel(target, hp1, cubePosition);
-    cubePosition = scanHPLevel(target, hp0, cubePosition);
+	cubePosition = scanHPLevel(target, hp2, cubePosition);
+	cubePosition = scanHPLevel(target, hp1, cubePosition);
+	cubePosition = scanHPLevel(target, hp0, cubePosition);
 	cubePosition.x = cubePosition.x / 2;
 	cubePosition.y = cubePosition.y / 2;
 	cubePosition.z = cubePosition.z / 2;
+
+	if(target % 10 == 0)
+		printf("%i %i %i %i\n", target, cubePosition.x, cubePosition.y, cubePosition.z);
 
     char vertexNr = 0;
 
@@ -550,7 +554,7 @@ __kernel void traverseHP(
 __constant uchar nrOfTriangles[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5, 3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4, 3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4, 3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0};
 
 __kernel void classifyCubes(
-		__global uint * histoPyramid, 
+		__global uint * histoPyramid,
         __global uchar * cubeIndexes,
 		__read_only image3d_t rawData,
 		__private float isolevel
@@ -568,16 +572,22 @@ __kernel void classifyCubes(
 		read_voxel(rawData, pos + cubeOffsets[6])
 		) > isolevel) >> 31;
 	
-    const uchar cubeindex = 
-	(any(pos.xyz == max_pos.xyz)) ? 0 : //correct edge voxels (clamping)
-    (cube_bits.s0)	    |
-    (cube_bits.s1) << 1 |
-    (cube_bits.s2) << 2 |
-    (cube_bits.s3) << 3 |
-    (cube_bits.s4) << 4 |
-    (cube_bits.s5) << 5 |
-    (cube_bits.s6) << 6 |
-    (cube_bits.s7) << 7;
+    uchar cubeindex;
+    if(any(pos.xyz == max_pos.xyz))
+    {
+    	cubeindex = 0;//correct edge voxels (clamping)
+    	printf("edge: %i=%i %i=%i %i=%i\n", pos.x, max_pos.x, pos.y, max_pos.y, pos.z, max_pos.z);
+    }
+    else
+    	cubeindex =
+		(cube_bits.s0)	    |
+		(cube_bits.s1) << 1 |
+		(cube_bits.s2) << 2 |
+		(cube_bits.s3) << 3 |
+		(cube_bits.s4) << 4 |
+		(cube_bits.s5) << 5 |
+		(cube_bits.s6) << 6 |
+		(cube_bits.s7) << 7;
 	
     // Store number of triangles and index
     uint writePos = EncodeMorton3(pos.x,pos.y,pos.z);
