@@ -7,7 +7,7 @@
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
 
-__constant int3 max_pos = (int3)(SIZE-1, SIZE-1, SIZE-1);
+__constant int3 max_pos = (int3)(STEREOFU_VOXELSPACE_RESOLUTION-1, STEREOFU_VOXELSPACE_RESOLUTION-1, STEREOFU_VOXELSPACE_RESOLUTION-1);
 __constant int3 min_pos = (int3)(0,0,0);
 
 /* Morton Code Functions - Kudos to http://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/ */
